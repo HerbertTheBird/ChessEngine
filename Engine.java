@@ -59,7 +59,7 @@ public class Engine {
 	final long[] zobrist_turn = new long[2];
 	final long[] zobrist_depth = new long[50];
 	final int CHECKMATE_SCORE = Integer.MAX_VALUE/2;
-	int MAX_DEPTH = 2;
+	int MAX_DEPTH = 5;
 	int[] best_move = new int[2];
 	/*
 	 * TODO
@@ -148,8 +148,9 @@ public class Engine {
 			}
 			{
 				System.out.println("input your move");
-				int start_square = in.nextInt();
-				int end_square = in.nextInt();
+				String input = in.nextLine();
+				int start_square = ((int)input.charAt(0)-'a')+(input.charAt(1)-1)*8;
+				int end_square = ((int)input.charAt(3)-'a')+(input.charAt(4)-1)*8;
 				int piece = -1;
 				int captured_piece = -1;
 
@@ -178,45 +179,94 @@ public class Engine {
 		}
 	}
 	public void get_best_move(int depth, int turn) {
-		negamax(depth, Integer.MIN_VALUE, Integer.MAX_VALUE, turn);
-		int move = best_move[0];
-		int start_square = move&0x3F;
-		int end_square = (move >>> 6) & 0x3F;
-		int promotion = move >>> 12;
-		int piece = -1;
-		int captured_piece = -1;
+		table.clear();
+		{
+			//System.out.println(-Integer.MIN_VALUE == Integer.MIN_VALUE);
+			negamax(depth, -Integer.MAX_VALUE, Integer.MAX_VALUE, turn);
+			int move = best_move[0];
+			int start_square = move&0x3F;
+			int end_square = (move >>> 6) & 0x3F;
+			int promotion = move >>> 12;
+			int piece = -1;
+			int captured_piece = -1;
 
-		for(int j = WHITE_PAWN; j <= BLACK_KING; j++) {
-			if(value(j, start_square)) {
-				piece = j;
-				break;
+			for(int j = WHITE_PAWN; j <= BLACK_KING; j++) {
+				if(value(j, start_square)) {
+					piece = j;
+					break;
+				}
 			}
-		}
-		for(int j = WHITE_PAWN; j <= BLACK_KING; j++) {
-			if(value(j, end_square)) {
-				captured_piece = j;
-				break;
+			for(int j = WHITE_PAWN; j <= BLACK_KING; j++) {
+				if(value(j, end_square)) {
+					captured_piece = j;
+					break;
+				}
 			}
-		}
-		boolean is_promote = promotion != PAWN;
-		if(captured_piece != -1) {
-			unset(captured_piece, end_square);
-		}
-		//System.out.println(piece + " " + depth);//RETURN -1 FOR SOME PIECE SOMEWHERE DEBUG LATER
-		unset(piece, start_square);
+			boolean is_promote = promotion != PAWN;
+			if(captured_piece != -1) {
+				unset(captured_piece, end_square);
+			}
+			//System.out.println(piece + " " + depth);//RETURN -1 FOR SOME PIECE SOMEWHERE DEBUG LATER
+			unset(piece, start_square);
 
-		if(is_promote) {
-			set(promotion*2+side2move, end_square);
-		}
-		else {
-			set(piece, end_square);
+			if(is_promote) {
+				set(promotion*2+side2move, end_square);
+			}
+			else {
+				set(piece, end_square);
+			}
 		}
 		ArrayList<Integer> moves = move_gen.generate_moves(OTHER(turn), 0, 0);
 		System.out.println("OPPONENT RESPONSES: ");
 		for(int i = 0; i < moves.size(); i++) {
-			int start = moves.get(i)&0x3F;
-			int end = (moves.get(i) >>> 6) & 0x3F;
-			System.out.println(start + " " + end);
+			int start_square = moves.get(i)&0x3F;
+			int end_square = (moves.get(i) >>> 6) & 0x3F;
+			int promotion = moves.get(i) >>> 12;
+			int captured_piece = -1;
+			int piece = -1;
+			for(int j = WHITE_PAWN; j <= BLACK_KING; j++) {
+				if(value(j, start_square)) {
+					piece = j;
+					break;
+				}
+			}
+			for(int j = WHITE_PAWN; j <= BLACK_KING; j++) {
+				if(value(j, end_square)) {
+					captured_piece = j;
+					break;
+				}
+			}
+			boolean is_promote = promotion != PAWN;
+
+			if(captured_piece != -1) {
+				unset(captured_piece, end_square);
+			}
+			unset(piece, start_square);
+			if(is_promote) {
+				set(promotion*2+side2move, end_square);
+			}
+			else {
+				set(piece, end_square);
+			}
+
+			System.out.println(start_square + " " + end_square + " " + eval.get_eval(side2move));
+
+
+			if(is_promote) {
+				unset(promotion*2+side2move, end_square);
+			}
+			else {
+				unset(piece, end_square);
+			}
+
+			set(piece, start_square);
+			if(captured_piece != -1) {
+				set(captured_piece, end_square);
+			}
+
+
+
+
 		}
 
 	}
@@ -253,7 +303,9 @@ public class Engine {
 			return 0;
 		}
 		if(depth == 0) {
-			return eval.get_eval(side2move);
+			int out = eval.get_eval(side2move);
+			table.put(hash(depth), out);
+			return out;
 		}
 
 		int out = Integer.MIN_VALUE;
