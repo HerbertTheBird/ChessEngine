@@ -96,12 +96,16 @@ public class MoveGenerator {
 	public ArrayList<Integer> generate_moves(int side2move, int pawn_move, int can_castle) { // INCOMPLETE NEED TO CHECK FOR LEGAL MOVES
 		ArrayList<Integer> moves = new ArrayList();
 		long side2moveboard = 0L;
+		long sidenot2moveboard = 0L;
 		long all_pieces = 0L;
 		for(int i = side2move; i <= BLACK_KING; i+=2) {
 			side2moveboard |= boards[i];
 		}
 		for(int i = side2move; i <= BLACK_KING; i++) {
 			all_pieces |= boards[i];
+		}
+		for(int i = OTHER(side2move); i <= BLACK_KING; i+=2) {
+			sidenot2moveboard |= boards[i];
 		}
 		for(int i = 0; i < 64; i++) {
 			//check if there is a piece here that is the same color as the player to move
@@ -130,12 +134,12 @@ public class MoveGenerator {
 					
 					//capture includes en passant
 					//not yet
-					pawn_capture(moves, i, i+direction+1, side2move, pawn_move);
-					pawn_capture(moves, i, i+direction-1, side2move, pawn_move);
+					pawn_capture(moves, i, i+direction+1, sidenot2moveboard, pawn_move);
+					pawn_capture(moves, i, i+direction-1, sidenot2moveboard, pawn_move);
 				}
 				else if(piece == KNIGHT) {
 					//knight and king use precomputation to generate moves
-					knight_move(moves, i, side2move);
+					knight_move(moves, i, side2moveboard);
 				}
 				else if(piece == BISHOP) {
 					//bishop and rook both sliding pieces, use sliding_move function for simplicity
@@ -164,7 +168,7 @@ public class MoveGenerator {
 				}
 				else if(piece == KING) {
 					//knight and king use precomputation to generate moves
-					king_move(moves, i, side2move);
+					king_move(moves, i, side2moveboard);
 				}
 
 			}
@@ -174,10 +178,10 @@ public class MoveGenerator {
 
 		return moves;
 	}
-	public void king_move(ArrayList<Integer> moves, int start_square, int side2move) { // COMPLETE
+	public void king_move(ArrayList<Integer> moves, int start_square, long side2moveboard) { // COMPLETE
 		//same as knight but with a king
 		//GENERATES PSEUDO LEGAL MOVES
-		long king = king_moves[start_square]&(~boards[side2move]);
+		long king = king_moves[start_square]&(~side2moveboard);
 		for(int i = 0; i < 64; i++) {
 			if(((king >> i)&1) == 1) {
 				moves.add(move_value(start_square, i, PAWN));
@@ -197,9 +201,9 @@ public class MoveGenerator {
 			}
 		}
 	}
-	public void knight_move(ArrayList<Integer> moves, int start_square, int side2move) { // COMPLETE
+	public void knight_move(ArrayList<Integer> moves, int start_square, long side2moveboard) { // COMPLETE
 		//get the precomputed knight moves and & it with the bitboard with the pieces of the same color so it doesnt capture its own pieces
-		long knight = knight_moves[start_square]&(~boards[side2move]);
+		long knight = knight_moves[start_square]&(~side2moveboard);
 		//check for places it can move
 		for(int i = 0; i < 64; i++) {
 			if(((knight >> i)&1) == 1) {
@@ -241,14 +245,14 @@ public class MoveGenerator {
 		}
 	}
 	//capture for pawns
-	public void pawn_capture(ArrayList<Integer> moves, int start_square, int end_square, int side2move, int pawn_move) { // COMPLETE
+	public void pawn_capture(ArrayList<Integer> moves, int start_square, int end_square, long sidenot2moveboard, int pawn_move) { // COMPLETE
 		int x = start_square%8;
 		int y = start_square/8;
 		int end_x = end_square%8;
 		int end_y = end_square/8;
 		//check if capture or en passant as they look the same for a pawn                 make sure the you dont accidentily capture across the board
 		//if((can_capture(end_square, side2move)||can_en_passant(end_square, side2move, pawn_move)) && Math.abs(x-end_x) == 1){
-		if(can_capture(end_square, side2move) && Math.abs(x-end_x) == 1){
+		if(can_capture(end_square, sidenot2moveboard) && Math.abs(x-end_x) == 1){
 			//promotion check
 			if(end_y == 7 || end_y == 0) {
 				for(int promotion = KNIGHT; promotion <= QUEEN; promotion++) {
@@ -266,8 +270,8 @@ public class MoveGenerator {
 		return is_valid(sq) && !value_l(all_pieces, sq);
 	}
 	//check if capture is possible
-	public boolean can_capture(int sq, long side2moveboard) { // COMPLETE
-		return is_valid(sq) && value_l(side2moveboard, sq);
+	public boolean can_capture(int sq, long sidenot2moveboard) { // COMPLETE
+		return is_valid(sq) && value_l(sidenot2moveboard, sq);
 	}
 	//function for checking if en passant is possible
 	public boolean can_en_passant(int sq, int side2move, int pawn_move) { // COMPLETE
